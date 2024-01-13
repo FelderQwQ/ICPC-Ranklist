@@ -1,5 +1,7 @@
 #include<bits/stdc++.h>
 using namespace std;
+
+const int MXN=1050,MXProbC=15;
 typedef long long ll;
 typedef pair<int,int> pii;
 typedef pair<int,ll> pil;
@@ -34,12 +36,14 @@ void setFile(string path,string ths){
 	fout.close();
 }
 
-map<string,string>team;
-set<string>teams;
-map<string,int>id;
-string names[1005];
-int cnt;
-int scnt[1005][15],lstt[1005][15],ac[1005],allfs[1005];
+map<string,string> team;
+set<string> teams;
+map<string,int> id;
+string names[MXN];
+int pcnt;
+int scnt[MXN][MXProbC],lstt[MXN][MXProbC];
+int SubC[MXN][MXProbC],fstAC[MXProbC];
+int ac[MXN],pena[MXN];
 
 void addperson(){
 	team["sjl"]=" ";
@@ -48,16 +52,18 @@ void addperson(){
 	team["lyx"]="我不知道";
 	team["lyc"]="我不知道";
 	team["zys"]="我不知道";
+	team["hah"]="114514";
 	//add more
 	for(auto [p,t]:team)teams.insert(t);
-	for(auto i:teams)names[id[i]=++cnt]=i;
+	for(auto i:teams)names[id[i]=++pcnt]=i;
 }
 
 struct th{int a,b,c;};
 
 string gt(string t,string col="black",string bgcol="#ffffff",string fontsize="15px")
 {
-	return "<td style=\"text-align: center;border: 1px solid grey;background-color:"+bgcol+";\"><span style=\"color:"+col+";font-size: "+fontsize+";\">"+t+"</span></td>\n";
+	return "<td style=\"text-align: center;border: 1px solid grey;background-color:"+bgcol+
+		";\"><span style=\"color:"+col+";font-size: "+fontsize+";\">"+t+"</span></td>\n";
 }
 string t2s(int t){
 	int h=t/60,m=t%60;
@@ -81,7 +87,7 @@ void updBoard(){
 	s+="<thead><tr>\n";
 	s+="<th>&emsp;排名&emsp;</th>\n";
 	s+="<th colspan=\"1\">&emsp;队伍名称&emsp;</th>\n";
-	s+="<th colspan=\"1\">&emsp;队伍 ID&emsp;</th>\n";
+	// s+="<th colspan=\"1\">&emsp;队伍 ID&emsp;</th>\n";
 	s+="<th colspan=\"1\">&emsp;&emsp;A&emsp;&emsp;</th>\n";
 	s+="<th colspan=\"1\">&emsp;&emsp;B&emsp;&emsp;</th>\n";
 	s+="<th colspan=\"1\">&emsp;&emsp;C&emsp;&emsp;</th>\n";
@@ -96,26 +102,44 @@ void updBoard(){
 	s+="</tr></thead>\n";
 	s+="<tbody>\n";
 	vector<th>v;
-	for(int i=1;i<=cnt;i++)v.push_back({ac[i],allfs[i],i});
+	for(int i=1;i<=pcnt;i++)v.push_back({ac[i],pena[i],i});
 	sort(all(v),[&](th a,th b){return a.a==b.a?a.b==b.b?a.c<b.c:a.b<b.b:a.a>b.a;});
 	int rk=0;
+	// scnt: Submission Count
+	// lstt: Time
+	// ac: Number of ACs
+	for(int p=1;p<=9;p++)
+	{
+		int mn=1e9,mnid=0;
+		for(int i=1;i<=pcnt;i++)
+		{
+			if(lstt[i][p]!=-1&&SubC[i][p]<mn) 
+			{
+				mn=SubC[i][p];
+				mnid=i;
+			}
+		}
+		fstAC[p]=mnid;
+	}
 	for(auto _:v){
 		int i=_.c;
 		s+="<tr>\n";++rk;
 		s+=gt(to_string(rk),"black",chbckc[rk%2]);
 		s+=gt(names[i],"black",chbckc[rk%2]);
-        s+=gt(to_string(i),"black",chbckc[rk%2]);
-		for(int p=1;p<=9;p++){
+        // s+=gt(to_string(i),"black",chbckc[rk%2]);
+		for(int p=1;p<=9;p++)
+		{
 			int l=lstt[i][p],c=scnt[i][p];
 			if(~l) 
 			{
-				s+=gt("+"+(c?to_string(c):"")+"<br> <span style=\"font-size: 9px;\">"+t2s(l)+"</span>","black",lgreen,"17px");
+				s+=gt("+"+(c?to_string(c):"")+"<br> <span style=\"font-size: 9px;\">"+
+					t2s(l)+"</span>","black",(fstAC[p]==i?dgreen:lgreen),"17px");
 			}
-			else if(c)s+=gt(to_string(c),"black",lred);
-			else s+=gt("","black",chbckc[rk%2]);
+			else if(c) s+=gt(to_string(c),"black",lred);
+			else s+=gt(" . <br> <span style=\"font-size: 9px;\">  .  </span>",chbckc[rk%2],chbckc[rk%2]);
 		}
 		s+=gt(to_string(ac[i]),"black",chbckc[rk%2]);
-		s+=gt(to_string(allfs[i]),"black",chbckc[rk%2]);
+		s+=gt(to_string(pena[i]),"black",chbckc[rk%2]);
 		s+="</tr>\n";
 	}
 	s+="</tbody>\n</table>\n";
@@ -148,12 +172,22 @@ void __SOLVE__(int _case){
 		if(pb=="G"||pb=="7")p=7;
 		if(pb=="H"||pb=="8")p=8;
 		if(pb=="I"||pb=="9")p=9;
-		if(~lstt[i][p])continue;
-		if(!sta)--scnt[i][p];
-		else scnt[i][p]=-scnt[i][p],lstt[i][p]=m,++ac[i],allfs[i]+=lstt[i][p]+20*scnt[i][p];
+		if(~lstt[i][p]) continue;
+		if(!sta) --scnt[i][p];
+		else 
+		{
+			scnt[i][p]=-scnt[i][p],lstt[i][p]=m,++ac[i];
+			pena[i]+=lstt[i][p]+20*scnt[i][p];
+			SubC[i][p]=__;
+		}
 		updBoard();
 	}
 }
+
+// scnt: Submission Count
+// lstt: Time
+// ac: Number of ACs
+
 int main()
 {
     freopen("Input.txt","r",stdin);
